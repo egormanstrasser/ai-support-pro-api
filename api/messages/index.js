@@ -3,18 +3,18 @@ import jwt from 'jsonwebtoken';
 import OpenAI from 'openai';
 
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
+  process.env.SUPABASE_URL_CRM,
+  process.env.SUPABASE_ANON_KEY_CRM
 );
 
 const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY 
+  apiKey: process.env.OPENAI_API_KEY_CRM 
 });
 
 function verifyToken(req) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) throw new Error('No token provided');
-  return jwt.verify(token, process.env.JWT_SECRET);
+  return jwt.verify(token, process.env.JWT_SECRET_CRM);
 }
 
 export default async function handler(req, res) {
@@ -55,7 +55,7 @@ export default async function handler(req, res) {
       if (senderType === 'customer') {
         try {
           const aiResponse = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
             messages: [
               {
                 role: "system",
