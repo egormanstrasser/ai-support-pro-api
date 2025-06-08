@@ -15,7 +15,6 @@ export default async function handler(req, res) {
   const { username, password } = req.body;
 
   try {
-    // Query user from database
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
@@ -26,31 +25,20 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Verify password
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate JWT token
     const token = jwt.sign(
-      { 
-        userId: user.id, 
-        username: user.username,
-        role: user.role 
-      },
+      { userId: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET_CRM,
       { expiresIn: '24h' }
     );
 
     res.status(200).json({
       token,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role
-      }
+      user: { id: user.id, username: user.username, email: user.email, role: user.role }
     });
   } catch (error) {
     console.error('Login error:', error);
