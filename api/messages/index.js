@@ -19,7 +19,7 @@ function verifyToken(req) {
 
 export default async function handler(req, res) {
   try {
-    const user = verifyToken(req);
+    const decoded = verifyToken(req);
 
     if (req.method === 'GET') {
       const { conversationId } = req.query;
@@ -31,73 +31,65 @@ export default async function handler(req, res) {
         .order('timestamp', { ascending: true });
 
       if (error) throw error;
-      res.status(200).json(messages);
-    }
 
-    else if (req.method === 'POST') {
+      res.status(200).json(messages);
+    } else if (req.method === 'POST') {
       const { conversationId, content, senderType, senderName } = req.body;
 
-      // Save user message
+      // Insert user message
       const { data: userMessage, error: userError } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
           content,
           sender_type: senderType,
-          sender_name: senderName || 'User'
+          sender_name: senderName,
+          timestamp: new Date().toISOString()
         })
         .select()
         .single();
 
       if (userError) throw userError;
 
-      // Generate AI response for customer messages
-      if (senderType === 'customer') {
-        try {
-          const aiResponse = await openai.chat.completions.create({
-            model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-            messages: [
-              {
-                role: "system",
-                content: "You are a helpful customer support assistant. Provide clear, professional responses to customer inquiries."
-              },
-              {
-                role: "user",
-                content: content
-              }
-            ],
-            max_tokens: 300
-          });
+      // Generate AI response
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are a helpful customer support assistant. Provide professional, concise responses to customer inquiries."
+          },
+          {
+            role: "user",
+            content: content
+          }
+        ],
+        max_tokens: 150
+      });
 
-          // Save AI response
-          const { data: aiMessage, error: aiError } = await supabase
-            .from('messages')
-            .insert({
-              conversation_id: conversationId,
-              content: aiResponse.choices[0].message.content,
-              sender_type: 'ai',
-              sender_name: 'AI Assistant'
-            })
-            .select()
-            .single();
+      const aiResponse = completion.choices[0].message.content;
 
-          if (aiError) throw aiError;
+      // Insert AI response
+      const { data: aiMessage, error: aiError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          content: aiResponse,
+          sender_type: 'ai',
+          sender_name: 'AI Assistant',
+          timestamp: new Date().toISOString()
+        })
+        .select()
+        .single();
 
-          res.status(201).json({ userMessage, aiMessage });
-        } catch (aiError) {
-          console.error('AI response error:', aiError);
-          res.status(201).json({ userMessage });
-        }
-      } else {
-        res.status(201).json({ userMessage });
-      }
-    }
+      if (aiError) throw aiError;
 
-    else {
+      res.status(200).json({ userMessage, aiMessage });
+    } else {
       res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error) {
-    console.error('Messages API error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Messages error:', error);
+    res.status(401).json({ error: 'Unauthorized' });
   }
 }
