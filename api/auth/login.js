@@ -3,8 +3,8 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
+  process.env.SUPABASE_URL_CRM,
+  process.env.SUPABASE_ANON_KEY_CRM
 );
 
 export default async function handler(req, res) {
@@ -39,7 +39,7 @@ export default async function handler(req, res) {
         username: user.username,
         role: user.role 
       },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET_CRM,
       { expiresIn: '24h' }
     );
 
